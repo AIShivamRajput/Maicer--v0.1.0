@@ -1,0 +1,89 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Maicer</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<style>
+:root{--bg:#FBFBF9;--panel:#fff;--ink:#17171A;--mut:#6B6B72;--faint:#9A9AA2;--line:#EBEBE6;--line2:#DEDED8;--hover:#F4F4F0;--y:#FFC700;--ys:#FFF4C7;--yi:#4A3A00;--ok:#1E9E5A;--bad:#D6453D;--sh:0 1px 2px rgba(20,20,20,.04),0 4px 14px rgba(20,20,20,.04)}
+[data-theme=dark]{--bg:#0E0E10;--panel:#151518;--ink:#F4F4F5;--mut:#A0A0A8;--faint:#6F6F78;--line:#24242A;--line2:#303038;--hover:#1C1C21;--ys:#2E2708;--yi:#FFD84D;--sh:0 1px 2px rgba(0,0,0,.4)}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;display:flex;background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;letter-spacing:-.003em;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+:focus-visible{outline:2px solid var(--y);outline-offset:2px;border-radius:8px}
+::-webkit-scrollbar{width:10px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px;border:3px solid var(--bg)}
+aside{width:232px;padding:22px 14px 16px;display:flex;flex-direction:column;border-right:1px solid var(--line);flex:none}
+.brand{display:flex;align-items:center;gap:10px;padding:0 10px 26px;font-weight:650;letter-spacing:.16em;font-size:13px}.brand svg{width:26px;height:26px;stroke:none}
+nav{display:flex;flex-direction:column;gap:2px}nav button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;color:var(--mut);font-weight:550;position:relative;transition:background .15s,color .15s}
+nav button:hover{background:var(--hover);color:var(--ink)}nav button:focus-visible{outline:2px solid var(--y)}
+nav button.on{background:var(--panel);color:var(--ink);box-shadow:var(--sh),0 0 0 1px var(--line)}nav button.on:before{content:"";position:absolute;left:-14px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--y)}nav button.on svg{color:#C79A00}
+.status{margin-top:auto;display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel);font-size:12.5px;color:var(--mut)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}.dot.listening{background:var(--y);animation:pulse 1.2s infinite}.dot.processing{background:var(--y);animation:pulse .6s infinite}
+@keyframes pulse{50%{transform:scale(1.6);opacity:.45}}.status b{margin-left:auto;font-weight:500}
+kbd{display:inline-block;min-width:22px;text-align:center;padding:1px 7px;border:1px solid var(--line2);border-bottom-width:2px;border-radius:7px;background:var(--panel);font:600 11.5px "Segoe UI Variable Text","Segoe UI",sans-serif;color:var(--ink)}
+main{flex:1;overflow:auto;min-width:0}section{display:none;max-width:980px;margin:0 auto;padding:40px clamp(22px,4vw,56px) 56px}section.on{display:block;animation:in .25s ease}
+@keyframes in{from{opacity:0;transform:translateY(4px)}}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:28px}
+h1{font-size:26px;line-height:1.15;margin:0;font-weight:650;letter-spacing:-.025em}.sub{color:var(--mut);margin:6px 0 0}
+h2{font-size:13px;font-weight:600;color:var(--mut);margin:34px 0 12px;letter-spacing:.02em}
+.hint{display:flex;align-items:center;gap:8px;color:var(--mut);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh)}
+.stat{padding:20px 22px;display:flex;flex-direction:column;min-height:158px}.stat .lbl{color:var(--mut);font-weight:550;font-size:13px}
+.num{font-size:44px;line-height:1;font-weight:650;letter-spacing:-.035em;font-variant-numeric:tabular-nums;margin-top:14px}
+.cap{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;color:var(--faint);font-size:12.5px;padding-top:16px}
+.bars{display:flex;align-items:flex-end;gap:5px;height:34px}.bars i{width:9px;border-radius:3px;background:var(--line2);min-height:3px}.bars i:last-child{background:var(--y)}
+.pill{width:30px;height:4px;border-radius:3px;background:var(--y)}
+.list{overflow:hidden}.row{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--line);transition:background .12s}.row:last-child{border:0}.row:hover,.row.sel{background:var(--hover)}
+.av{width:34px;height:34px;border-radius:10px;background:var(--hover);border:1px solid var(--line);display:grid;place-items:center;font-weight:650;font-size:13px;color:var(--mut);flex:none}
+.row .t{flex:1;min-width:0}.row b{display:block;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row small{color:var(--faint);font-size:12.5px}.when{color:var(--faint);font-size:12.5px;white-space:nowrap}
+.tag{display:inline-block;padding:0 7px;border-radius:6px;background:var(--ys);color:var(--yi);font-size:11.5px;font-weight:600;margin-right:6px}
+.empty{padding:54px 24px;text-align:center}.empty .orb{width:56px;height:56px;margin:0 auto 16px;border-radius:18px;background:var(--ys);color:var(--yi);display:grid;place-items:center}.orb svg{width:26px;height:26px}
+.empty h3{margin:0 0 6px;font-size:17px;font-weight:650;letter-spacing:-.015em}.empty p{margin:2px 0;color:var(--mut)}
+.search{position:relative}.search svg{position:absolute;left:13px;top:11px;color:var(--faint);width:16px;height:16px}
+input[type=search],select,.field{width:100%;height:40px;padding:0 14px;border:1px solid var(--line2);border-radius:11px;background:var(--panel);color:var(--ink);font:inherit}input[type=search]{padding-left:38px}
+.split{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:20px;align-items:start}@media(max-width:860px){.split{grid-template-columns:1fr}}
+.glabel{padding:14px 16px 6px;font-size:11.5px;font-weight:600;color:var(--faint);letter-spacing:.04em;text-transform:uppercase}
+.detail{padding:22px;position:sticky;top:24px}.detail h3{font-size:18px;margin:0 0 10px;font-weight:600;letter-spacing:-.015em}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}.chips span{font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+pre{margin:0 0 16px;padding:16px;border-radius:12px;background:var(--hover);border:1px solid var(--line);font:12.5px/1.6 "Cascadia Code",Consolas,monospace;white-space:pre-wrap;max-height:300px;overflow:auto}
+.btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:10px;font-weight:600;background:var(--y);color:#1b1500;transition:filter .15s}.btn:hover{filter:brightness(.96)}
+.btn.g{background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line2)}.btn.g:hover{background:var(--hover);filter:none}.btn svg{width:16px;height:16px}.btn:focus-visible{outline:2px solid var(--y);outline-offset:2px}
+.group{margin-bottom:22px;overflow:hidden}.set{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:15px 18px;border-bottom:1px solid var(--line)}.set:last-child{border:0}
+.set .d{font-weight:550}.set small{display:block;color:var(--faint);font-weight:400;font-size:12.5px;margin-top:1px;max-width:46ch}.set select{width:210px}
+.sw{all:unset;box-sizing:border-box;cursor:pointer;width:40px;height:24px;border-radius:999px;background:var(--line2);position:relative;transition:background .18s;flex:none}.sw:after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .18s}
+.sw[aria-checked=true]{background:var(--y)}.sw[aria-checked=true]:after{transform:translateX(16px)}.sw:focus-visible{outline:2px solid var(--y);outline-offset:2px}
+.seg{display:inline-flex;padding:3px;border-radius:11px;background:var(--hover);border:1px solid var(--line)}.seg button{all:unset;cursor:pointer;padding:5px 13px;border-radius:8px;font-weight:550;color:var(--mut);font-size:13px}.seg button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}.seg button:focus-visible{outline:2px solid var(--y)}
+#hkb{all:unset;cursor:pointer;display:inline-flex;gap:5px;align-items:center;padding:6px 10px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);color:var(--mut);font-size:12.5px}#hkb:hover{background:var(--hover)}#hkb:focus-visible{outline:2px solid var(--y)}
+.err{color:var(--bad);font-size:12.5px;margin-top:4px}.ok{color:var(--ok)}.meter{height:4px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden;width:180px}.meter i{display:block;height:100%;width:0;background:var(--y);transition:width .08s}
+#ob{position:fixed;inset:0;background:var(--bg);display:none;place-items:center;text-align:center;z-index:9;padding:24px}#ob.on{display:grid}#ob .box{max-width:400px}#ob .brand{justify-content:center;padding-bottom:30px}
+#ob h1{font-size:28px;margin-bottom:8px}.dots{display:flex;justify-content:center;gap:6px;margin:26px 0 0}.dots i{width:6px;height:6px;border-radius:50%;background:var(--line2)}.dots i.on{background:var(--y);width:18px;border-radius:4px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<aside aria-label="Sidebar"><div class="brand"><svg viewBox="0 0 26 26"><rect width="26" height="26" rx="8" fill="#FFC700"/><rect x="7" y="10" width="3" height="6" rx="1.5" fill="#17171A"/><rect x="11.5" y="6.5" width="3" height="13" rx="1.5" fill="#17171A"/><rect x="16" y="9" width="3" height="8" rx="1.5" fill="#17171A"/></svg>MAICER</div>
+<nav aria-label="Main"><button data-p="home" class="on"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+<button data-p="history"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>History</button>
+<button data-p="settings"><svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>Settings</button></nav>
+<div class="status"><i class="dot" id="dot"></i><span id="stxt">Ready</span><b id="hkmini"><kbd>Ctrl</kbd> <kbd>M</kbd></b></div></aside>
+<main>
+<section id="home" class="on"><div class="top"><div><h1 id="greet"></h1><p class="sub">Here's your Maicer activity</p></div><div class="hint">Dictate anywhere <span id="hk1"><kbd>Ctrl</kbd> <kbd>M</kbd></span></div></div>
+<div class="card" id="micCard" style="display:none;padding:22px 22px;margin-bottom:26px">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+<div><div style="font-weight:650;font-size:16px">Allow your microphone</div><div class="sub" id="micMsg" style="margin-top:4px">Maicer listens only while you hold Ctrl + M.</div></div>
+<button class="btn" id="micBtn">Allow microphone</button></div></div>
+<div class="grid"><div class="card stat"><span class="lbl">Lines written</span><div class="num" id="total">0</div><div class="cap"><span id="cnt">No activity yet</span><i class="pill"></i></div></div>
+<div class="card stat"><span class="lbl">Lines today</span><div class="num" id="today">0</div><div class="cap"><span>Last 7 days</span><div class="bars" id="bars"></div></div></div></div>
+<h2>Recent activity</h2><div class="card list" id="recent"></div></section>
+<section id="history"><div class="top"><div><h1>History</h1><p class="sub">Everything Maicer has written for you</p></div></div>
+<div class="split"><div><div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input type="search" id="q" placeholder="Search history" aria-label="Search history"></div><div class="card list" id="hlist" style="margin-top:14px"></div></div>
+<div class="card detail" id="detail"></div></div></section>
+<section id="settings"><div class="top"><div><h1>Settings</h1><p class="sub">Simple by design</p></div></div>
+<div class="card group"><div class="set"><div><div class="d">Shortcut</div><small>Hold it to speak, and let go to finish.</small><div class="err" id="err"></div></div><button id="hkb" aria-label="Change shortcut"></button></div>
+<div class="set"><div class="d">Start with Windows</div><button class="sw" role="switch" data-k="startWithWindows" aria-label="Start with Windows"></button></div>
+<div class="set"><div><div class="d">Floating indicator</div><small>A small pill that shows when Maicer is listening.</small></div><button class="sw" role="switch" data-k="indicator" aria-label="Floating indicator"></button></div>
+<div class="set"><div class="d">Theme</div><div class="seg" data-k="theme"><button data-v="light">Light</button><button data-v="dark">Dark</button></div></div></div>
+<div class="card group"><div class="set"><div><div class="d">Microphone</div><small id="mtest">Check that Maicer can hear you.</small><div class="meter"><i id="lvl"></i></div></div><div style="display:flex;gap:8px"><select data-k="micId" id="micId" aria-label="Microphone"></select><button class="btn g" id="mbtn">Test</button></div></div>
+<div class="set"><div class="d">Language</div><select data-k="language"><option value="en">English</option><option value="auto">Auto-detect</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option><option value="pt">Portuguese</option><option value="hi">Hindi</option></select></div>
+<div class="set"><div><div class="d">Voice detection</div><small>How sensitive Maicer is to quiet speech.</small></div><div class="seg" data-k="vad"><button data-v="low">Low</button><button data-v="medium">Medium</button><button data-v="high">High</button></div></div></div>
+<div class="card group"><div class="set"><div><div class="d">Performance</div><small>Fast stays ready. Memory saver frees RAM while idle.</small></div><div class="seg" data-k="performance"><button data-v="fast">Fast</button><button data-v="saver">Memory saver</button></div></div>
+<div class="set" id="idleRow"><div class="d">Free memory after</div><select data-k="idleMinutes"><option value="2">2 minutes</option><option value="5">5 minutes</option><option value="10">10 minutes</option></select></div></div>
+<div class="card group"><div class="set"><div><div class="d">Privacy</div><small>Speech recognition and writing run on this computer. Maicer does not send your audio or text to any server.</small></div></div>
+<div class="set"><div><div class="d">Diagnostics</div><small>A local log file that is never uploaded.</small></div><button class="btn g" id="diag">Open folder</button></div>
+<div class="set"><div><div class="d">Clear all history</div><small>Also resets your line counts.</small></div><button class="btn g" id="clr">Clear…</button></div></div></section>
+</main>
+<script src="app.js"></script></html>

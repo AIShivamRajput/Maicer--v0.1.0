@@ -1,0 +1,13 @@
+node_modules/
+dist/
+tmp/
+resources/engine/
+resources/*.exe
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.log

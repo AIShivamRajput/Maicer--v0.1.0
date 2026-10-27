@@ -1,0 +1,26 @@
+{
+  "_comment": "Where the build downloads the engines and models, the release tag to pin (empty = latest), and the SHA-256 each file must match. An empty sha256 stops the build on purpose: the build prints the computed hash. Check it against the upstream release page or model card, paste it here, and re-run. Changing a file, tag or hash is a reviewable change.",
+  "whisper": {
+    "repo": "ggml-org/whisper.cpp",
+    "asset": "whisper-bin-x64.zip",
+    "sha256": "b1514ebc099765e39fa37eb780b92a140a94c86bb0b3b3d98226b38825979732",
+    "tag": "v1.8.2"
+  },
+  "llama": {
+    "repo": "ggml-org/llama.cpp",
+    "tag": "b4150",
+    "sourceCommit": "a5e47592b6171ae21f3eaa1aba6fb2b707875063"
+  },
+  "speechModel": {
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin",
+    "sha256": "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898"
+  },
+  "writerModel": {
+    "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+  },
+  "vcRedist": {
+    "url": "https://aka.ms/vs/17/release/vc_redist.x64.exe",
+    "sha256": "cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b"
+  }
+}

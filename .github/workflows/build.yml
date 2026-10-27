@@ -1,0 +1,165 @@
+name: Build Maicer installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Security and tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Match release tag to package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $packageVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tagVersion = $env:GITHUB_REF_NAME.Substring(1)
+          if ($tagVersion -ne $packageVersion) {
+            throw "Release tag v$tagVersion does not match package.json version $packageVersion."
+          }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITLEAKS_ENABLE_COMMENTS: 'false'
+      - run: npm ci
+      - run: npm audit --audit-level=low
+      - run: npm test
+
+  build:
+    name: Build Windows installer
+    needs: checks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Download verified engines, models, and runtime
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $cfg = Get-Content build/engine-sources.json -Raw | ConvertFrom-Json
+          New-Item -ItemType Directory -Force tmp, resources/engine/whisper, resources/engine/llama, resources/engine/models | Out-Null
+
+          function Assert-Sha256([string]$file, [string]$expected, [string]$label) {
+            if ([string]::IsNullOrWhiteSpace($expected)) {
+              $actual = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
+              throw "No authenticated SHA-256 is recorded for $label. Downloaded SHA-256: $actual. Verify it against an upstream-published checksum before updating build/engine-sources.json."
+            }
+            $actual = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
+            if ($actual -ne $expected.ToLower()) {
+              throw "SHA-256 mismatch for $label. Expected $expected, got $actual. The file was not used."
+            }
+            Write-Host "Verified $label SHA-256: $actual"
+          }
+
+          $wTag = @(); if ($cfg.whisper.tag) { $wTag = @($cfg.whisper.tag) }
+          gh release download @wTag --repo $cfg.whisper.repo --pattern $cfg.whisper.asset --dir tmp
+          if ($LASTEXITCODE -ne 0) { throw "whisper.cpp download failed: $($cfg.whisper.asset) not found in $($cfg.whisper.repo)" }
+          Assert-Sha256 "tmp/$($cfg.whisper.asset)" $cfg.whisper.sha256 'whisper.cpp'
+
+          git clone --depth 1 --branch $cfg.llama.tag --single-branch "https://github.com/$($cfg.llama.repo).git" tmp/llama-src
+          if ($LASTEXITCODE -ne 0) { throw "llama.cpp source checkout failed for tag $($cfg.llama.tag)" }
+          $llamaCommit = (git -C tmp/llama-src rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $llamaCommit -ne $cfg.llama.sourceCommit) {
+            throw "llama.cpp tag resolved to $llamaCommit, not the pinned source commit $($cfg.llama.sourceCommit)."
+          }
+
+          Expand-Archive "tmp/$($cfg.whisper.asset)" tmp/w -Force
+          Get-ChildItem tmp/w -Recurse -File -Include *.exe,*.dll | Copy-Item -Destination resources/engine/whisper
+
+          cmake -S tmp/llama-src -B tmp/llama-build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DGGML_AVX2=ON -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=ON
+          if ($LASTEXITCODE -ne 0) { throw 'llama.cpp CMake configuration failed' }
+          cmake --build tmp/llama-build --config Release --target llama-server --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw 'llama-server build failed' }
+          $llamaServer = Get-ChildItem tmp/llama-build -Recurse -File -Filter llama-server.exe | Select-Object -First 1
+          if (-not $llamaServer) { throw 'llama-server.exe was not produced by the pinned llama.cpp source build' }
+          Copy-Item $llamaServer.FullName resources/engine/llama
+          Get-ChildItem $llamaServer.DirectoryName -File -Filter '*.dll' | Copy-Item -Destination resources/engine/llama
+
+          Invoke-WebRequest $cfg.speechModel.url -OutFile resources/engine/models/speech.bin
+          Assert-Sha256 resources/engine/models/speech.bin $cfg.speechModel.sha256 'speech model'
+          Invoke-WebRequest $cfg.writerModel.url -OutFile resources/engine/models/writer.gguf
+          Assert-Sha256 resources/engine/models/writer.gguf $cfg.writerModel.sha256 'writer model'
+          Invoke-WebRequest $cfg.vcRedist.url -OutFile resources/vc_redist.x64.exe
+          Assert-Sha256 resources/vc_redist.x64.exe $cfg.vcRedist.sha256 'Visual C++ runtime'
+          $signature = Get-AuthenticodeSignature resources/vc_redist.x64.exe
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Microsoft Corporation') {
+            throw 'The Visual C++ runtime does not have a valid Microsoft code signature.'
+          }
+
+          foreach ($file in 'whisper/whisper-cli.exe', 'llama/llama-server.exe', 'models/speech.bin', 'models/writer.gguf') {
+            if (-not (Test-Path "resources/engine/$file")) { throw "Missing $file - the upstream release layout may have changed" }
+          }
+          Get-ChildItem resources/engine -Recurse -File | Select-Object FullName, Length
+
+      - name: Check engine binaries start
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & resources/engine/whisper/whisper-cli.exe --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'whisper-cli.exe --help failed' }
+          & resources/engine/llama/llama-server.exe --version
+          if ($LASTEXITCODE -ne 0) { throw 'llama-server.exe --version failed' }
+      - run: npm ci
+        env:
+          npm_config_msvs_version: 2022
+      - run: npm run dist
+      - name: Verify installer
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem dist -Filter '*.exe' -File -ErrorAction SilentlyContinue)
+          if ($installers.Count -ne 1) { throw "Expected exactly one Windows installer, found $($installers.Count)." }
+          if ($installers[0].Length -le 0) { throw "Installer is empty: $($installers[0].FullName)" }
+          Write-Host "Verified installer: $($installers[0].FullName) ($($installers[0].Length) bytes)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Maicer-Setup
+          path: dist/*.exe
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [checks, build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Maicer-Setup
+          path: dist
+      - name: Publish verified installer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installers = @(Get-ChildItem dist -Filter '*.exe' -File)
+          if ($installers.Count -ne 1) { throw "Expected exactly one installer, found $($installers.Count)." }
+          if ($installers[0].Length -le 0) { throw "Installer is empty: $($installers[0].FullName)" }
+          $version = $env:GITHUB_REF_NAME
+          $target = "dist/Maicer-Setup-$version.exe"
+          Copy-Item $installers[0].FullName $target
+          gh release create $version $target --title "Maicer $version" --generate-notes --verify-tag

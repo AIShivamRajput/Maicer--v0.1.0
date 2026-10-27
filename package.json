@@ -1,0 +1,51 @@
+{
+  "name": "maicer",
+  "productName": "Maicer",
+  "version": "0.1.0",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "43.8.3",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.maicer.app",
+    "productName": "Maicer",
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false,
+      "include": "installer/installer.nsh"
+    },
+    "extraResources": [
+      {
+        "from": "resources/engine",
+        "to": "engine"
+      },
+      {
+        "from": "resources/vc_redist.x64.exe",
+        "to": "vc_redist.x64.exe"
+      }
+    ],
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "compression": "store"
+  },
+  "license": "MIT",
+  "description": "Maicer: hold Ctrl+M, speak, and the text or code is written at your cursor. Runs on your Windows PC.",
+  "author": "Maicer contributors",
+  "optionalDependencies": {
+    "uiohook-napi": "^1.5.4"
+  }
+}
