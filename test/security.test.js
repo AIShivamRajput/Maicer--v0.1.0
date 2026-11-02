@@ -123,6 +123,18 @@ test('installer artifacts are validated and releases require successful checks a
   assert.match(wf, /gh release create \$version \$target[\s\S]*?--verify-tag/);
 });
 
+test('third-party notices match the pinned app and engine versions', () => {
+  const root = path.join(__dirname, '..');
+  const notices = fs.readFileSync(path.join(root, 'THIRD_PARTY_NOTICES.md'), 'utf8');
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const sources = JSON.parse(fs.readFileSync(path.join(root, 'build', 'engine-sources.json'), 'utf8'));
+  assert.ok(notices.includes(`Electron ${manifest.devDependencies.electron}`));
+  assert.ok(notices.includes(`electron-builder ${manifest.devDependencies['electron-builder']}`));
+  assert.ok(notices.includes(`release ${sources.whisper.tag}`));
+  assert.ok(notices.includes(`tag ${sources.llama.tag}`));
+  assert.ok(notices.includes(sources.llama.sourceCommit));
+});
+
 test('the dashboard allows no inline event handler attributes', () => {
   for (const f of files.filter((x) => x.endsWith('.html'))) {
     assert.doesNotMatch(read(f), /\son(click|load|change|submit|input)\s*=\s*["']/, path.relative(SRC, f));

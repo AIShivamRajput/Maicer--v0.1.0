@@ -6,16 +6,16 @@ Maicer uses the components below. Each keeps its own licence. Check the links be
 
 | Component | Use | Licence |
 |---|---|---|
-| Electron 43.2.0 | desktop app shell | MIT |
+| Electron 43.8.3 | desktop app shell | MIT |
 | uiohook-napi (optional) | key-release detection | MIT |
-| electron-builder | builds the Windows installer | MIT |
+| electron-builder 26.18.0 | builds the Windows installer | MIT |
 
 ## Engines (downloaded by the build, not stored in this repository)
 
 | Component | Pinned to | Use | Licence |
 |---|---|---|---|
 | whisper.cpp (ggml-org) | release v1.8.2 | speech recognition | MIT |
-| llama.cpp (ggml-org) | latest release, to be pinned | writing model runtime | MIT |
+| llama.cpp (ggml-org) | tag b4150, source commit `a5e47592b6171ae21f3eaa1aba6fb2b707875063` | writing model runtime | MIT |
 | Microsoft Visual C++ Redistributable | Microsoft download link | Windows runtime | Microsoft's redistributable terms |
 
 ## Models (downloaded by the build, not stored in this repository)
