@@ -22,7 +22,7 @@ const saveSettings = () => fs.writeFileSync(path.join(userData(), 'settings.json
 const MSG = {
   NO_SPEECH: ['No speech detected', "We didn't hear anything. Try speaking again."],
   MIC: ['Microphone unavailable', 'Check your microphone and try again.'],
-  ENGINE_MISSING: ['Voice files missing', 'Please reinstall Maicer.'],
+  ENGINE_MISSING: ['Voice files missing', 'Run the Maicer installer again to repair the local voice files. Your settings and history are kept.'],
   PASTE: ['No text field available', "Maicer couldn't find an active text field."],
   FOCUS: ['Focus moved', 'Your text is on the clipboard. Click where it belongs and press Ctrl + V.'],
   OTHER: ['Processing error', 'Something went wrong. Please try again.'],

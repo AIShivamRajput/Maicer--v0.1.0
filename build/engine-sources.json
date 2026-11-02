@@ -1,5 +1,5 @@
 {
-  "_comment": "Where the build downloads the engines and models, the release tag to pin (empty = latest), and the SHA-256 each file must match. An empty sha256 stops the build on purpose: the build prints the computed hash. Check it against the upstream release page or model card, paste it here, and re-run. Changing a file, tag or hash is a reviewable change.",
+  "_comment": "Pinned upstream engine/model sources and expected SHA-256 digests. Model URLs use immutable Hugging Face commit revisions. Verify upstream provenance before changing any pin.",
   "whisper": {
     "repo": "ggml-org/whisper.cpp",
     "asset": "whisper-bin-x64.zip",
@@ -12,11 +12,17 @@
     "sourceCommit": "a5e47592b6171ae21f3eaa1aba6fb2b707875063"
   },
   "speechModel": {
-    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin",
+    "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q5_1.bin",
     "sha256": "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898"
   },
+  "whisperTestAudio": {
+    "url": "https://raw.githubusercontent.com/ggml-org/whisper.cpp/v1.8.2/samples/jfk.wav",
+    "sha256": "59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e"
+  },
   "writerModel": {
-    "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "revision": "91cad51170dc346986eccefdc2dd33a9da36ead9",
+    "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf",
     "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
   },
   "vcRedist": {

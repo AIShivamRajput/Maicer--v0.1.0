@@ -24,6 +24,8 @@
       "perMachine": false,
       "runAfterFinish": true,
       "allowToChangeInstallationDirectory": false,
+      "createStartMenuShortcut": true,
+      "createDesktopShortcut": false,
       "deleteAppDataOnUninstall": false,
       "include": "installer/installer.nsh"
     },
@@ -35,6 +37,10 @@
       {
         "from": "resources/vc_redist.x64.exe",
         "to": "vc_redist.x64.exe"
+      },
+      {
+        "from": "installer/remove-launcher.ps1",
+        "to": "remove-launcher.ps1"
       }
     ],
     "asarUnpack": [

@@ -3,16 +3,30 @@
 Maicer is a Windows app for writing code and text with your voice. Hold **Ctrl + M**, speak, and let go.
 The result is pasted where your cursor is.
 
-> **Alpha.** Maicer runs on your own PC. It has been tested by its authors on logic and security checks only.
+> **Alpha.** Maicer runs on your own PC. Automated logic and security checks pass, but Windows installation,
+> Windows-version compatibility, and real AI engine/model startup have not been tested in this environment.
 > Expect rough edges, and please report what you find (see [Reporting problems](#reporting-problems)).
 
 ## Download and install
 
-1. Go to the [Releases page](https://github.com/AIShivamRajput/Maicer-v.1.0.0/releases/latest) and download the
-   **Maicer-Setup-<version>.exe** installer.
-2. Run it. Windows will say **"Windows protected your PC"**, because the installer is not code-signed yet.
-   Click **More info**, then **Run anyway**.
-3. Follow the installer. Tick **Run Maicer** at the end if it's offered.
+On a 64-bit Windows 10 22H2 or Windows 11 PC, open PowerShell and run:
+
+```powershell
+irm https://raw.githubusercontent.com/AIShivamRajput/Maicer-v.1.0.0/main/install.ps1 | iex
+```
+
+The script checks Windows and disk space, automatically downloads the latest stable GitHub Release, verifies the
+setup file against its published SHA-256 file, and runs the per-user installer. You do not need to visit GitHub
+or manually download an installer. Electron includes Maicer's Node.js runtime;
+you do not need to install Node.js, Git, npm, or development tools. The installer also installs the pinned engines,
+AI models, and (if needed) Microsoft's signed Visual C++ runtime. A UAC prompt may be required for that runtime.
+The setup executable is not code-signed yet, so Windows SmartScreen may show a warning. The SHA-256 check detects
+file changes but is not a publisher signature; only use the command and releases from this repository.
+
+The Start Menu shortcut is named **Maicer**. A maintainer must publish a verified release with both
+`Maicer-Setup-v<version>.exe` and its `.sha256` file before the command can install anything. The installer
+retrieves these automatically; if no release has been published, or its checksum is missing, it stops without
+running an installer.
 
 ## First run
 
@@ -34,7 +48,8 @@ The result is pasted where your cursor is.
 
 ## Requirements
 
-- Windows 10 or 11, 64-bit.
+- Windows 10 22H2 or Windows 11, 64-bit. Earlier Windows 10 builds are rejected by the installer.
+- A processor with AVX2 support (the pinned llama.cpp build uses AVX2).
 - **8 GB of RAM recommended.** Estimates, not measured:
 
   | Mode | While idle | While dictating |
@@ -43,7 +58,9 @@ The result is pasted where your cursor is.
   | Memory saver | about 300–400 MB | peaks around 2.5–3 GB briefly |
 
   On a 4 GB PC, Maicer may be slow, may slow other programs, or may fail to load its model. Use Memory saver.
-- About 1.4 GB of disk space for the installer, which includes the models. The installed size is larger.
+- The installer includes the engines and models. Before downloading, setup checks available disk space based on
+  the release's actual installer size; when the download and install use the same drive, it requires roughly twice
+  that size. This is a safety check, not a measured minimum installed size.
 - Everything runs on your processor. Speed depends on your PC. The first request after starting, or after
   Memory saver unloads the model, is the slowest.
 
@@ -53,6 +70,7 @@ The result is pasted where your cursor is.
 - It can't edit existing code in place.
 - It runs on Windows only.
 - It can't paste into windows that run as administrator. Maicer itself doesn't need administrator rights.
+- Windows 10/11 compatibility has not yet been confirmed on physical or virtual Windows test machines.
 - Speed and output quality have not been measured.
 - Languages other than English are listed in Settings but untested.
 
@@ -77,19 +95,38 @@ Maicer only connects to `127.0.0.1`, its own local model server.
 ## Where Maicer keeps its files
 
 - `%APPDATA%\Maicer`: settings, history database and `maicer.log`.
+- `%LOCALAPPDATA%\Maicer\engine\models`: the checksum-manifested models, retained across app updates.
 - `%LOCALAPPDATA%\Maicer`: the helper script used for pasting and focus checks.
 
 `maicer.log` records error codes and messages only. It never contains audio, transcripts or clipboard contents.
 
 ## Troubleshooting
 
+- **The installer says no release is published:** a maintainer must publish the first versioned GitHub Release.
+  The installer will not use an unverified workflow artifact or an unpublished build.
+- **Checksum verification fails or the download is interrupted:** do not run the downloaded file. Rerun the same
+  PowerShell command; partial downloads are discarded and the installer is verified before execution.
+- **`maicer` is not recognized in another terminal:** close and reopen that terminal so it receives the updated
+  user PATH. The Start Menu shortcut is also available.
+- **Maicer reports missing voice files:** rerun the PowerShell installation command to repair the installation.
+  It does not erase your history or settings.
 - **Ctrl + M does nothing:** check that Maicer is running (tray icon) and that the Home screen shows microphone allowed.
   Another app may use Ctrl + M. Change the shortcut in Settings.
 - **"Allow your microphone first":** click **Allow microphone** on the Home screen. Check Windows Settings →
   Privacy & security → Microphone.
-- **"Voice files missing":** the installer is incomplete. Download the latest release again.
+- **"Voice files missing":** rerun the PowerShell installation command to repair the installation.
 - **Text doesn't appear:** click into a text box first. Some apps don't accept paste, and administrator windows block it.
 - **The first request is slow:** expected while the model loads.
+
+## Update and uninstall
+
+To check for and install an update, rerun the same one-command PowerShell installation command. If the latest
+version is already installed, no setup or model download is performed. Newer releases are SHA-256-checked before
+the setup program runs. Settings, history, and unchanged models are retained during updates.
+
+To uninstall, open **Settings → Apps → Installed apps → Maicer**.
+The uninstaller removes the app and `maicer` command, then asks whether to also delete history, settings, and
+downloaded models. The default is to keep them.
 
 ## Reporting problems
 
@@ -111,7 +148,9 @@ npm run dist       # builds dist/Maicer-Setup-*.exe on Windows
 ```
 
 Requirements: Node.js 22.12 or newer, and npm. The Windows GitHub Actions build compiles the pinned llama.cpp
-source commit with the Visual Studio C++ toolchain provided by the runner.
+source commit with the Visual Studio C++ toolchain provided by the runner, verifies all source downloads, loads
+the actual Whisper model against a checksum-pinned speech sample, runs llama.cpp inference twice, installs the
+resulting package, and checks its installed files, Start Menu shortcut and application launch.
 
 A local build does not download the speech and writing engines, so the app shows "Voice files missing" unless
 you add them. The GitHub Actions workflow (`.github/workflows/build.yml`) downloads them.
@@ -119,12 +158,16 @@ you add them. The GitHub Actions workflow (`.github/workflows/build.yml`) downlo
 ### Releases
 
 Pushing a version tag such as `v0.1.0` runs the security checks, tests and Windows build, then publishes
-`Maicer-Setup-v0.1.0.exe` as a GitHub Release only when all required jobs pass. Workflow runs also upload
-the installer as a downloadable artifact. The tag version must match `package.json`.
+`Maicer-Setup-v0.1.0.exe` and its SHA-256 sidecar as a GitHub Release only when all required jobs pass. Workflow
+runs also upload the installer as a downloadable artifact. The tag version must match `package.json`. The workflow
+is not triggered by this documentation or code change; a maintainer must publish a release before the one-command
+installer can be used.
 
 ### Engines, models and checksums
 
 `build/engine-sources.json` lists pinned engine sources and the SHA-256 of every binary, model and runtime file the build downloads.
+The Whisper and Qwen model URLs are pinned to immutable Hugging Face revisions; their hashes are checked before
+the files are packaged.
 
 - The llama.cpp Windows release does not publish an authenticated SHA-256, so Actions builds it from a pinned source commit
   instead of accepting an unchecked binary. The pinned commit is checked against the configured SHA before compilation.

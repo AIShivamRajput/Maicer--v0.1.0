@@ -40,6 +40,16 @@ jobs:
       - run: npm ci
       - run: npm audit --audit-level=low
       - run: npm test
+      - name: Validate PowerShell installer syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($file in 'install.ps1', 'installer/remove-launcher.ps1') {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$errors)
+            if ($errors.Count -gt 0) { throw "$file has PowerShell parse errors: $($errors -join '; ')" }
+          }
 
   build:
     name: Build Windows installer
@@ -111,6 +121,8 @@ jobs:
           foreach ($file in 'whisper/whisper-cli.exe', 'llama/llama-server.exe', 'models/speech.bin', 'models/writer.gguf') {
             if (-not (Test-Path "resources/engine/$file")) { throw "Missing $file - the upstream release layout may have changed" }
           }
+          $modelManifest = "[models]`r`nspeech=$($cfg.speechModel.sha256)`r`nwriter=$($cfg.writerModel.sha256)`r`n"
+          [IO.File]::WriteAllText('resources/engine/models/manifest.ini', $modelManifest, [Text.Encoding]::ASCII)
           Get-ChildItem resources/engine -Recurse -File | Select-Object FullName, Length
 
       - name: Check engine binaries start
@@ -121,6 +133,79 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'whisper-cli.exe --help failed' }
           & resources/engine/llama/llama-server.exe --version
           if ($LASTEXITCODE -ne 0) { throw 'llama-server.exe --version failed' }
+
+      - name: Load Whisper model and run llama.cpp inference
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $cfg = Get-Content build/engine-sources.json -Raw | ConvertFrom-Json
+          $whisper = (Resolve-Path 'resources/engine/whisper/whisper-cli.exe').Path
+          $speechModel = (Resolve-Path 'resources/engine/models/speech.bin').Path
+          $wavPath = Join-Path $env:RUNNER_TEMP 'whisper-jfk.wav'
+          Invoke-WebRequest -Uri $cfg.whisperTestAudio.url -OutFile $wavPath -TimeoutSec 60
+          $audioHash = (Get-FileHash $wavPath -Algorithm SHA256).Hash.ToLower()
+          if ($audioHash -ne $cfg.whisperTestAudio.sha256) {
+            throw "Whisper test audio SHA-256 mismatch: expected $($cfg.whisperTestAudio.sha256), got $audioHash."
+          }
+
+          foreach ($launch in 1..2) {
+            $whisperLog = Join-Path $env:RUNNER_TEMP "whisper-$launch.log"
+            & $whisper -m $speechModel -f $wavPath -l en -nt -np -t 2 *> $whisperLog
+            if ($LASTEXITCODE -ne 0) { throw "whisper.cpp failed to load and process the real speech model on launch $launch." }
+            $transcript = Get-Content $whisperLog -Raw
+            if ($transcript -notmatch '(?i)ask not what your country can do for you' -or
+                $transcript -notmatch '(?i)ask what you can do for your country') {
+              throw "Whisper did not recognize the pinned JFK speech fixture on launch $launch."
+            }
+          }
+
+          $server = (Resolve-Path 'resources/engine/llama/llama-server.exe').Path
+          $model = (Resolve-Path 'resources/engine/models/writer.gguf').Path
+          foreach ($launch in 1..2) {
+            $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $port = ([Net.IPEndPoint]$listener.LocalEndpoint).Port
+            $listener.Stop()
+            $stdout = Join-Path $env:RUNNER_TEMP "llama-$launch.out.log"
+            $stderr = Join-Path $env:RUNNER_TEMP "llama-$launch.err.log"
+            $process = Start-Process -FilePath $server -ArgumentList @(
+              '-m', "`"$model`"", '--host', '127.0.0.1', '--port', "$port", '-c', '512', '-t', '2', '-np', '1'
+            ) -WorkingDirectory (Split-Path $server) -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            try {
+              $ready = $false
+              for ($attempt = 0; $attempt -lt 240; $attempt++) {
+                $process.Refresh()
+                if ($process.HasExited) { throw "llama-server exited during startup on launch $launch." }
+                try {
+                  $health = Invoke-WebRequest -Uri "http://127.0.0.1:$port/health" -UseBasicParsing -TimeoutSec 3
+                  if ($health.StatusCode -eq 200) { $ready = $true; break }
+                }
+                catch {}
+                Start-Sleep -Seconds 1
+              }
+              if (-not $ready) { throw "llama-server did not load the real writer model on launch $launch." }
+
+              $request = @{
+                messages = @(@{ role = 'user'; content = 'Reply with exactly MAICER_ENGINE_OK and nothing else.' })
+                temperature = 0
+                max_tokens = 32
+                stream = $false
+              } | ConvertTo-Json -Depth 5
+              $response = Invoke-RestMethod -Uri "http://127.0.0.1:$port/v1/chat/completions" -Method Post `
+                -ContentType 'application/json' -Body $request -TimeoutSec 120
+              if ($response.choices[0].message.content -notmatch 'MAICER_ENGINE_OK') {
+                throw "llama.cpp inference returned an unexpected response on launch $launch."
+              }
+            }
+            finally {
+              $process.Refresh()
+              if (-not $process.HasExited) {
+                $process.Kill()
+                [void]$process.WaitForExit(10000)
+              }
+            }
+          }
+
       - run: npm ci
         env:
           npm_config_msvs_version: 2022
@@ -132,6 +217,39 @@ jobs:
           if ($installers.Count -ne 1) { throw "Expected exactly one Windows installer, found $($installers.Count)." }
           if ($installers[0].Length -le 0) { throw "Installer is empty: $($installers[0].FullName)" }
           Write-Host "Verified installer: $($installers[0].FullName) ($($installers[0].Length) bytes)"
+
+      - name: Install package and verify installed app, models, and shortcut
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = (Resolve-Path (Get-ChildItem dist -Filter '*.exe' -File | Select-Object -First 1).FullName).Path
+          $setup = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Silent installer exited with code $($setup.ExitCode)." }
+
+          $app = Join-Path $env:LOCALAPPDATA 'Programs\Maicer\Maicer.exe'
+          $engine = Join-Path $env:LOCALAPPDATA 'Programs\Maicer\resources\engine'
+          $models = Join-Path $env:LOCALAPPDATA 'Maicer\engine\models'
+          foreach ($file in @(
+            $app,
+            (Join-Path $engine 'whisper\whisper-cli.exe'),
+            (Join-Path $engine 'llama\llama-server.exe'),
+            (Join-Path $models 'speech.bin'),
+            (Join-Path $models 'writer.gguf'),
+            (Join-Path $models 'manifest.ini')
+          )) {
+            if (-not (Test-Path -LiteralPath $file)) { throw "Installed package is missing $file." }
+          }
+
+          $shortcuts = @(Get-ChildItem (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs') -Recurse -Filter 'Maicer.lnk' -File)
+          if ($shortcuts.Count -eq 0) { throw 'The Maicer Start Menu shortcut was not installed.' }
+
+          $appProcess = Start-Process -FilePath $app -ArgumentList '--disable-gpu' -PassThru
+          Start-Sleep -Seconds 15
+          $appProcess.Refresh()
+          if ($appProcess.HasExited) { throw "Installed Maicer exited during launch with code $($appProcess.ExitCode)." }
+          $appProcess.Kill()
+          [void]$appProcess.WaitForExit(10000)
+
       - uses: actions/upload-artifact@v4
         with:
           name: Maicer-Setup
@@ -162,4 +280,7 @@ jobs:
           $version = $env:GITHUB_REF_NAME
           $target = "dist/Maicer-Setup-$version.exe"
           Copy-Item $installers[0].FullName $target
-          gh release create $version $target --title "Maicer $version" --generate-notes --verify-tag
+          $checksum = "$target.sha256"
+          $hash = (Get-FileHash $target -Algorithm SHA256).Hash.ToLower()
+          [IO.File]::WriteAllText($checksum, "$hash  $(Split-Path -Leaf $target)`n", [Text.Encoding]::ASCII)
+          gh release create $version $target $checksum --title "Maicer $version" --generate-notes --verify-tag
