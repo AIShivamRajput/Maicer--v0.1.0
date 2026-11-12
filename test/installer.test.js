@@ -77,3 +77,17 @@ test('Windows build loads both real models, runs inference twice, and smoke-test
   assert.match(workflow, /Install package and verify installed app, models, and shortcut/);
   assert.match(workflow, /Start-Process -FilePath \$app/);
 });
+
+test('pushes to main run Windows security checks and installer build without path filters', () => {
+  const workflow = read('.github/workflows/build.yml');
+  const push = workflow.match(/^  push:\r?\n([\s\S]*?)(?=^  \w+:|^permissions:)/m)?.[1];
+  assert.ok(push, 'push event is missing');
+  assert.match(push, /branches:\s*\[main\]/);
+  assert.doesNotMatch(push, /paths(?:-ignore)?:/);
+  assert.match(workflow, /secret-scan:\s*\n[\s\S]*?runs-on: ubuntu-latest/);
+  assert.match(workflow, /checks:\s*\n\s+name: Security and tests\s*\n\s+needs: secret-scan/);
+  assert.match(workflow, /checks:\s*\n[\s\S]*?runs-on: windows-latest/);
+  assert.match(workflow, /build:\s*\n[\s\S]*?runs-on: windows-latest/);
+  assert.match(workflow, /npm audit --audit-level=low/);
+  assert.match(workflow, /npm test/);
+});
