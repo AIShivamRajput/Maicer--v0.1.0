@@ -111,6 +111,8 @@ test('every download in the build is checked against a SHA-256 before use', () =
   }
   assert.match(cfg.llama.sourceCommit, /^[a-f0-9]{40}$/, 'llama.cpp must use a pinned source commit');
   assert.match(wf, /rev-parse HEAD/, 'the checked-out llama.cpp commit must be verified');
+  assert.match(wf, /-DLLAMA_BUILD_EXAMPLES=ON/, 'llama-server is included through the examples build');
+  assert.match(wf, /-DLLAMA_BUILD_SERVER=ON/, 'the llama-server target must be enabled');
   assert.match(wf, /cmake --build .*--target llama-server/, 'llama-server must be built from the pinned source');
 });
 

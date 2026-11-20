@@ -107,7 +107,7 @@ jobs:
           Expand-Archive "tmp/$($cfg.whisper.asset)" tmp/w -Force
           Get-ChildItem tmp/w -Recurse -File -Include *.exe,*.dll | Copy-Item -Destination resources/engine/whisper
 
-          cmake -S tmp/llama-src -B tmp/llama-build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DGGML_AVX2=ON -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=ON
+          cmake -S tmp/llama-src -B tmp/llama-build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DGGML_AVX2=ON -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=ON -DLLAMA_BUILD_SERVER=ON
           if ($LASTEXITCODE -ne 0) { throw 'llama.cpp CMake configuration failed' }
           cmake --build tmp/llama-build --config Release --target llama-server --parallel 2
           if ($LASTEXITCODE -ne 0) { throw 'llama-server build failed' }
